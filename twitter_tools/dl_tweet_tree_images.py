@@ -1,99 +1,41 @@
 #!/usr/bin/env python3
 
-import os
-import json
-import requests
 import tempfile
 from pathlib import Path
 import shutil
+import requests
+
+from .get_self_reply_tree_image_tweets import get_self_reply_tree_image_tweets
 
 def dl_tweet_tree_images(
     tweet_id: str,
     output_dir: Path,
     token: str,
 ):
-    session = requests.Session()
+    tree = get_self_reply_tree_image_tweets(root_tweet_id=tweet_id, token=token)
 
-    headers = {
-      'Authorization': f'Bearer {token}'
-    }
-
-    # https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/get-statuses-show-id
-    res_tweets = session.get(f'https://api.twitter.com/1.1/statuses/show.json?id={tweet_id}', headers=headers)
-    tweet = json.loads(res_tweets.text)
-    author_screen_name = tweet['user']['screen_name']
-
-    params = {
-        'q': f'from:{author_screen_name}',
-        'count': 100,
-        'result_type': 'recent',
-        'include_entities': 1,
-    }
-
-    # https://developer.twitter.com/en/docs/twitter-api/v1/tweets/search/api-reference/get-search-tweets
-    res_self_mentions = session.get('https://api.twitter.com/1.1/search/tweets.json', headers=headers, params=params)
-    self_mentions = json.loads(res_self_mentions.text)
-
-    thread_ids = set()
-    thread_ids.add(str(tweet_id))
-
-    print(tweet_id, tweet['text'])
-
-    self_replies = []
-    self_replies.append(tweet)
-    for mention in reversed(self_mentions['statuses']):
-        mention_tweet_id = str(mention['id'])
-        in_reply_to_status_id = str(mention['in_reply_to_status_id'])
-
-        if in_reply_to_status_id is not None and in_reply_to_status_id in thread_ids:
-            thread_ids.add(mention_tweet_id)
-            self_replies.append(mention)
-
-    print(':Self Reply List')
-    for self_reply in self_replies:
-        print(self_reply['id'], self_reply['text'], '=>', self_reply['in_reply_to_status_id'])
-
-
+    num_photos = sum(map(lambda tweet: len(tweet.photo_urls), tree.tweets))
     download_index = 1
-    downloaded_url_list = set()
-    print(':Media List')
-    for self_reply in self_replies:
-        def download_photos(entities):
-            nonlocal download_index, downloaded_url_list
 
-            media = entities.get('media')
-            if media is None:
-                return
+    for tweet in tree.tweets:
+        print(f'@{tree.screen_name}: {tweet.text}')
+        for photo_index, photo_url in enumerate(tweet.photo_urls):
+            tweet_dir = output_dir / f'{tree.screen_name}_{tweet_id}'
+            tweet_dir.mkdir(parents=True, exist_ok=True)
 
-            photos = filter(lambda medium: medium['type'] == 'photo', media)
-            for photo in photos:
-                photo_url = photo['media_url_https']
-                if photo_url in downloaded_url_list:
-                    continue
+            filename = Path(photo_url).name
+            new_filename = f'{tweet_id}_{download_index:03}_{filename}'
+            output_path = tweet_dir / new_filename
 
-                print(photo_url)
+            print(f'{"(skip) " if output_path.exists() else ""}[{download_index}/{num_photos}] {photo_url} => {output_path}')
 
-                tweet_dir = output_dir / f'{author_screen_name}_{tweet_id}'
-                tweet_dir.mkdir(parents=True, exist_ok=True)
+            if output_path.exists():
+                download_index += 1
+                continue
 
-                filename = Path(photo_url).name
-                new_filename = f'{tweet_id}_{download_index:03}_{filename}'
-                output_path = tweet_dir / new_filename
-                if output_path.exists():
-                    continue
+            with tempfile.NamedTemporaryFile() as fp:
+                photo_res = requests.get(photo_url, stream=True)
+                shutil.copyfileobj(photo_res.raw, fp)
+                shutil.copy(fp.name, output_path)
 
-                with tempfile.NamedTemporaryFile() as fp:
-                    photo_res = session.get(photo_url, stream=True)
-                    shutil.copyfileobj(photo_res.raw, fp)
-                    shutil.copy(fp.name, output_path)
-
-                    download_index += 1
-                    downloaded_url_list.add(photo_url)
-
-        entities = self_reply.get('entities')
-        if entities is not None:
-            download_photos(entities)
-
-        extended_entities = self_reply.get('extended_entities')
-        if extended_entities is not None:
-            download_photos(extended_entities)
+                download_index += 1
