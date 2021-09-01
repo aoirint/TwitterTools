@@ -1,4 +1,3 @@
-import json
 import requests
 from typing import List, Dict, Any
 from dataclasses import dataclass
@@ -27,27 +26,41 @@ def get_self_reply_tree_image_tweets(
 
     # https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/get-statuses-show-id
     res_tweets = session.get(f'https://api.twitter.com/1.1/statuses/show.json?id={root_tweet_id}', headers=headers)
-    tweet = json.loads(res_tweets.text)
+    tweet = res_tweets.json()
     author_screen_name = tweet['user']['screen_name']
 
+    # params = {
+    #     'q': f'from:{author_screen_name}',
+    #     'since_id': root_tweet_id,
+    #     'count': 100,
+    #     'result_type': 'recent',
+    #     'include_entities': 1,
+    # }
+    #
+    # # https://developer.twitter.com/en/docs/twitter-api/v1/tweets/search/api-reference/get-search-tweets
+    # res_self_mentions = session.get('https://api.twitter.com/1.1/search/tweets.json', headers=headers, params=params)
+
+    # https://developer.twitter.com/en/docs/twitter-api/v1/tweets/timelines/api-reference/get-statuses-user_timeline
     params = {
-        'q': f'from:{author_screen_name}',
+        'screen_name': author_screen_name,
         'since_id': root_tweet_id,
-        'count': 100,
-        'result_type': 'recent',
-        'include_entities': 1,
+        'count': 50,
+        'trim_user': True,
     }
 
-    # https://developer.twitter.com/en/docs/twitter-api/v1/tweets/search/api-reference/get-search-tweets
-    res_self_mentions = session.get('https://api.twitter.com/1.1/search/tweets.json', headers=headers, params=params)
-    self_mentions = json.loads(res_self_mentions.text)
+    res_self_mentions = session.get('https://api.twitter.com/1.1/statuses/user_timeline.json', headers=headers, params=params)
+    self_mentions = res_self_mentions.json()
+
+    print(':Self Tweet List')
+    for self_tweet in self_mentions:
+        print(self_tweet['id'], self_tweet['text'], '=>', self_tweet['in_reply_to_status_id'], self_tweet['created_at'])
 
     thread_ids = set()
     thread_ids.add(str(root_tweet_id))
 
     self_replies = []
     self_replies.append(tweet)
-    for mention in reversed(self_mentions['statuses']):
+    for mention in reversed(self_mentions):
         mention_tweet_id = str(mention['id'])
         in_reply_to_status_id = str(mention['in_reply_to_status_id'])
 
