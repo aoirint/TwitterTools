@@ -27,17 +27,24 @@ def get_self_reply_tree_image_tweets(
 
     # https://developer.twitter.com/en/docs/twitter-api/tweets/lookup/api-reference/get-tweets-id
     params = {
-        'user.fields': 'username',
+        'ids': root_tweet_id,
         'tweet.fields': 'conversation_id',
+        'expansions': 'author_id',
+        'user.fields': 'username',
     }
-    res_tweets = session.get(f'https://api.twitter.com/2/tweets/{root_tweet_id}', headers=headers)
-    print(res_tweets)
-    print(res_tweets.json())
+    res_root_tweets = session.get(f'https://api.twitter.com/2/tweets', headers=headers, params=params)
+
+    root_tweets = res_root_tweets.json()
+    root_tweets_data = root_tweets['data']
+    root_tweets_includes = root_tweets['includes']
+
+    root_tweet = root_tweets_data[0]
+    conversation_id = root_tweet['conversation_id']
+
+    author = root_tweets_includes['users'][0]
+    author_screen_name = author['username']
 
     # TODO: work in progress
-
-    tweet = json.loads(res_tweets.text)
-    author_screen_name = tweet['user']['screen_name']
 
     params = {
         'q': f'from:{author_screen_name}',
@@ -48,7 +55,7 @@ def get_self_reply_tree_image_tweets(
     }
 
     # https://developer.twitter.com/en/docs/twitter-api/v1/tweets/search/api-reference/get-search-tweets
-    res_self_mentions = session.get('https://api.twitter.com/1.1/search/tweets.json', headers=headers, params=params)
+    res_self_mentions = session.get('https://api.twitter.com/2/search/tweets.json', headers=headers, params=params)
     self_mentions = json.loads(res_self_mentions.text)
 
     thread_ids = set()
