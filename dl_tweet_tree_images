@@ -6,15 +6,15 @@ import requests
 import tempfile
 from pathlib import Path
 import shutil
-import copy
-
-TOKEN = '__TOKEN__'
 
 if __name__ == '__main__':
+    from dotenv import load_dotenv
+    load_dotenv()
+
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('tweet_id', type=str)
-    parser.add_argument('--token', type=str, default=TOKEN)
+    parser.add_argument('--token', type=str, default=os.environ.get('TOKEN'))
     parser.add_argument('--output_dir', type=str, default='photos')
     args = parser.parse_args()
 
@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
                 print(photo_url)
 
-                tweet_dir = output_dir / tweet_id
+                tweet_dir = output_dir / f'{author_screen_name}_{tweet_id}'
                 tweet_dir.mkdir(parents=True, exist_ok=True)
 
                 filename = Path(photo_url).name
