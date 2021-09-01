@@ -32,6 +32,7 @@ def get_self_reply_tree_image_tweets(
 
     params = {
         'q': f'from:{author_screen_name}',
+        'since_id': root_tweet_id,
         'count': 100,
         'result_type': 'recent',
         'include_entities': 1,
