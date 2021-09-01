@@ -25,8 +25,17 @@ def get_self_reply_tree_image_tweets(
       'Authorization': f'Bearer {token}'
     }
 
-    # https://developer.twitter.com/en/docs/twitter-api/v1/tweets/post-and-engage/api-reference/get-statuses-show-id
-    res_tweets = session.get(f'https://api.twitter.com/1.1/statuses/show.json?id={root_tweet_id}', headers=headers)
+    # https://developer.twitter.com/en/docs/twitter-api/tweets/lookup/api-reference/get-tweets-id
+    params = {
+        'user.fields': 'username',
+        'tweet.fields': 'conversation_id',
+    }
+    res_tweets = session.get(f'https://api.twitter.com/2/tweets/{root_tweet_id}', headers=headers)
+    print(res_tweets)
+    print(res_tweets.json())
+
+    # TODO: work in progress
+
     tweet = json.loads(res_tweets.text)
     author_screen_name = tweet['user']['screen_name']
 
@@ -34,7 +43,7 @@ def get_self_reply_tree_image_tweets(
         'q': f'from:{author_screen_name}',
         'since_id': root_tweet_id,
         'count': 100,
-        'result_type': 'recent',
+        'result_type': 'mixed',
         'include_entities': 1,
     }
 
