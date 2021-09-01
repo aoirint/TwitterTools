@@ -11,7 +11,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('tweet_id', type=str)
-    parser.add_argument('--output_dir', type=str, default='photos')
+    parser.add_argument('--output_dir', type=str, default='twitter')
     parser.add_argument('--token', type=str, default=os.environ.get('TOKEN'))
     args = parser.parse_args()
 
